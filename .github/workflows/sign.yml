@@ -138,7 +138,8 @@ jobs:
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           cd dist
           sha256sum tacticalrmm > tacticalrmm.sha256
-          gpg --batch --yes --passphrase "$GPG_PASSPHRASE" --armor --detach-sign tacticalrmm
+          gpg --batch --pinentry-mode loopback --yes --passphrase "$GPG_PASSPHRASE" --armor --detach-sign tacticalrmm
+          gpg --verify tacticalrmm.asc tacticalrmm
       - uses: actions/upload-artifact@v4
         with:
           name: signed-linux-amd64
