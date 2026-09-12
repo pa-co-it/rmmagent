@@ -1,0 +1,159 @@
+name: Build and sign agents
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  id-token: write      # OIDC login a Azure
+  contents: write      # crear release
+
+env:
+  GO_VERSION: '1.20.13'
+  # --- Azure Artifact Signing ---
+  SIGNING_ENDPOINT: 'https://weu.codesigning.azure.net'
+  SIGNING_ACCOUNT: 'ingenieriasanitaria'
+  CERT_PROFILE: 'trmm-agent'
+  # Set in Azure AD app that has "Artifact Signing Certificate Profile Signer" role
+
+jobs:
+  # ---------------------------------------------------------------- build
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: windows, goarch: amd64, ext: ".exe" }
+          - { goos: linux,   goarch: amd64, ext: "" }
+          - { goos: linux,   goarch: arm64, ext: "" }
+          - { goos: darwin,  goarch: amd64, ext: "" }
+          - { goos: darwin,  goarch: arm64, ext: "" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Build
+        shell: bash
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -trimpath -ldflags "-s -w" -o "dist/tacticalrmm${{ matrix.ext }}" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+
+  # -------------------------------------------------------- sign windows
+  sign-windows:
+    needs: build
+    runs-on: windows-2022
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: agent-windows-amd64
+          path: dist
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ env.SIGNING_ENDPOINT }}
+          signing-account-name: ${{ env.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ env.CERT_PROFILE }}
+          files: ${{ github.workspace }}\dist\tacticalrmm.exe
+          file-digest: SHA256
+          timestamp-rfc3161: 'http://timestamp.acs.microsoft.com'
+          timestamp-digest: SHA256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-windows-amd64
+          path: dist/tacticalrmm.exe
+
+  # ---------------------------------------------------------- sign macos
+  sign-macos:
+    needs: build
+    runs-on: macos-14
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: agent-darwin-${{ matrix.arch }}
+          path: dist
+      - name: Import Developer ID certificate
+        env:
+          CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          echo "$CERT_P12" | base64 --decode > cert.p12
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          security import cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+      - name: Codesign
+        run: |
+          codesign --force --options runtime --timestamp \
+            --sign "Developer ID Application: INGENIERIA SANITARIA S.L. (${{ secrets.APPLE_TEAM_ID }})" \
+            dist/tacticalrmm
+          codesign --verify --strict --verbose=2 dist/tacticalrmm
+      - name: Notarize
+        env:
+          KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
+          ASC_KEY: ${{ secrets.APPLE_ASC_KEY }}
+        run: |
+          echo "$ASC_KEY" > AuthKey.p8
+          ditto -c -k --keepParent dist/tacticalrmm dist/tacticalrmm.zip
+          xcrun notarytool submit dist/tacticalrmm.zip \
+            --key AuthKey.p8 --key-id "$KEY_ID" --issuer "$ISSUER_ID" --wait
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-darwin-${{ matrix.arch }}
+          path: dist/tacticalrmm
+
+  # ---------------------------------------------------------- sign linux
+  sign-linux:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: agent-linux-amd64
+          path: dist
+      - name: GPG sign
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          cd dist
+          sha256sum tacticalrmm > tacticalrmm.sha256
+          gpg --batch --yes --passphrase "$GPG_PASSPHRASE" --armor --detach-sign tacticalrmm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-linux-amd64
+          path: dist/*
+
+  # -------------------------------------------------------------- release
+  release:
+    needs: [sign-windows, sign-macos, sign-linux]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
