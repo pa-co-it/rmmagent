@@ -29,6 +29,9 @@ $ErrorActionPreference = "Stop"
 if (-not (Test-Path -LiteralPath $AgentExe)) { throw "No existe el binario del agente: $AgentExe" }
 if (-not (Test-Path -LiteralPath $Iscc))     { throw "No existe ISCC.exe: $Iscc" }
 
+$AgentExe = (Resolve-Path -LiteralPath $AgentExe).Path
+$OutDir   = [System.IO.Path]::GetFullPath($OutDir)
+
 $flags = "--silent"
 if ($Rdp -eq 1)   { $flags += " --rdp" }
 if ($Ping -eq 1)  { $flags += " --ping" }
