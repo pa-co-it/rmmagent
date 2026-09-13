@@ -62,6 +62,11 @@ jobs:
           go build -trimpath -ldflags "-s -w" -o build\artifacts\tacticalrmm.exe .
           Get-Item build\artifacts\tacticalrmm.exe | Select-Object Length
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-windows-amd64-branded
+          path: build\artifacts\tacticalrmm.exe
+
       - name: Install Inno Setup
         shell: pwsh
         run: choco install innosetup -y --no-progress

@@ -109,14 +109,14 @@ func (a *Agent) checkExistingAndRemove(silent bool) {
 		window := w32.GetForegroundWindow()
 		if !silent && window != 0 {
 			var handle w32.HWND
-			msg := "Existing installation found\nClick OK to remove, then re-run the installer.\nClick Cancel to abort."
-			action := w32.MessageBox(handle, msg, "Tactical RMM", w32.MB_OKCANCEL|w32.MB_ICONWARNING)
+			msg := "Se encontro una instalacion existente.\nPulsa Aceptar para eliminarla y vuelve a ejecutar el instalador.\nPulsa Cancelar para abortar."
+			action := w32.MessageBox(handle, msg, "PA.CO.IT", w32.MB_OKCANCEL|w32.MB_ICONWARNING)
 			if action == w32.IDOK {
 				a.AgentUninstall("foo")
 			}
 		} else {
-			fmt.Println("Existing installation found and must be removed before attempting to reinstall.")
-			fmt.Println("Run the following command to uninstall, and then re-run this installer.")
+			fmt.Println("Se encontro una instalacion existente y debe eliminarse antes de reinstalar.")
+			fmt.Println("Ejecuta el siguiente comando para desinstalar y vuelve a ejecutar el instalador.")
 			fmt.Printf(`"%s" %s `, tacUninstArgs[0], tacUninstArgs[1])
 		}
 		os.Exit(0)
@@ -140,7 +140,7 @@ func (a *Agent) installerMsg(msg, alert string, silent bool) {
 			flags = w32.MB_OK | w32.MB_ICONINFORMATION
 		}
 
-		w32.MessageBox(handle, msg, "Tactical RMM", flags)
+		w32.MessageBox(handle, msg, "PA.CO.IT", flags)
 	} else {
 		fmt.Println(msg)
 	}

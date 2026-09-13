@@ -69,7 +69,7 @@ func (a *Agent) Install(i *Installer) {
 	}
 
 	if u.Scheme != "https" && u.Scheme != "http" {
-		a.installerMsg("Invalid URL (must contain https or http)", "error", i.Silent)
+		a.installerMsg("URL no valida (debe contener https o http)", "error", i.Silent)
 	}
 
 	// will match either ipv4 , or ipv4:port
@@ -114,7 +114,7 @@ func (a *Agent) Install(i *Installer) {
 		a.installerMsg(cerr.Error(), "error", i.Silent)
 	}
 	if creds.StatusCode() == 401 {
-		a.installerMsg("Installer token has expired. Please generate a new one.", "error", i.Silent)
+		a.installerMsg("El token del instalador ha caducado. Genera uno nuevo.", "error", i.Silent)
 	}
 
 	verPayload := map[string]string{"version": a.Version}
@@ -136,7 +136,7 @@ func (a *Agent) Install(i *Installer) {
 	// set local cert if applicable
 	if len(i.Cert) > 0 {
 		if !trmm.FileExists(i.Cert) {
-			a.installerMsg(fmt.Sprintf("%s does not exist", i.Cert), "error", i.Silent)
+			a.installerMsg(fmt.Sprintf("%s no existe", i.Cert), "error", i.Silent)
 		}
 		rClient.SetRootCertificate(i.Cert)
 	}
@@ -183,10 +183,10 @@ func (a *Agent) Install(i *Installer) {
 			payload := map[string]string{"goarch": a.GoArch, "plat": a.Platform}
 			r, err := rClient.R().SetBody(payload).SetOutput(meshOutput).Post(fmt.Sprintf("%s/api/v3/meshexe/", baseURL))
 			if err != nil {
-				a.installerMsg(fmt.Sprintf("Failed to download mesh agent: %s", err.Error()), "error", i.Silent)
+				a.installerMsg(fmt.Sprintf("Fallo al descargar el agente mesh: %s", err.Error()), "error", i.Silent)
 			}
 			if r.StatusCode() != 200 {
-				a.installerMsg(fmt.Sprintf("Unable to download the mesh agent from the RMM. %s", r.String()), "error", i.Silent)
+				a.installerMsg(fmt.Sprintf("No se pudo descargar el agente mesh del RMM. %s", r.String()), "error", i.Silent)
 			}
 		}
 
@@ -197,7 +197,7 @@ func (a *Agent) Install(i *Installer) {
 		if runtime.GOOS == "windows" {
 			meshNodeID, err = a.installMesh(meshOutput, installerMeshSystemEXE, i.Proxy)
 			if err != nil {
-				a.installerMsg(fmt.Sprintf("Failed to install mesh agent: %s", err.Error()), "error", i.Silent)
+				a.installerMsg(fmt.Sprintf("Fallo al instalar el agente mesh: %s", err.Error()), "error", i.Silent)
 			}
 		} else {
 			opts := a.NewCMDOpts()
@@ -349,7 +349,7 @@ func (a *Agent) Install(i *Installer) {
 		}
 	}
 
-	a.installerMsg("Installation was successful!\nAllow a few minutes for the agent to properly display in the RMM", "info", i.Silent)
+	a.installerMsg("Instalacion correcta.\nDeja unos minutos para que el agente aparezca en el RMM.", "info", i.Silent)
 }
 
 func copyFile(src, dst string) error {

@@ -142,10 +142,10 @@ func GenerateAgentID() string {
 
 // ShowVersionInfo prints basic debugging info
 func ShowVersionInfo(ver string) {
-	fmt.Println("Tactical RMM Agent:", ver)
-	fmt.Println("Arch:", runtime.GOARCH)
+	fmt.Println("Agente PA.CO.IT:", ver)
+	fmt.Println("Arquitectura:", runtime.GOARCH)
 	if runtime.GOOS == "windows" {
-		fmt.Println("Program Directory:", filepath.Join(os.Getenv("ProgramFiles"), progFilesName))
+		fmt.Println("Directorio de programa:", filepath.Join(os.Getenv("ProgramFiles"), progFilesName))
 	}
 	bi, ok := goDebug.ReadBuildInfo()
 	if ok {
