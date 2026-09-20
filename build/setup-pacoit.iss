@@ -1,10 +1,14 @@
-; ============================================================================
+﻿; ============================================================================
 ;  setup-pacoit.iss  -  Instalador Inno Setup por cliente (pa.co.it)
 ;  Genera un .exe con client/site/token embebidos en espanol.
 ;
 ;  Se compila con ISCC y defines:
 ;    /DClient=  /DSite=  /DApi=  /DToken=  /DAgentType=
 ;    /DRunFlags=  /DAgentVersion=  /DAgentExePath=  /DOutName=
+;
+;  El instalador se relanza solo con /VERYSILENT (guardado por WizardSilent):
+;  el usuario nunca ve el asistente "Siguiente, Siguiente", solo la
+;  confirmacion final. El agente se instala en modo silencioso.
 ; ============================================================================
 
 #ifndef AppName
@@ -56,6 +60,11 @@ AppSupportURL={#AppURL}
 DefaultDirName={autopf}\TacticalAgent
 DisableDirPage=yes
 DisableProgramGroupPage=yes
+DisableWelcomePage=yes
+DisableReadyPage=yes
+DisableReadyMemo=yes
+DisableFinishedPage=yes
+DisableStartupPrompt=yes
 SetupLogging=yes
 Compression=lzma
 SolidCompression=yes
@@ -79,7 +88,6 @@ Source: "{#AgentExePath}"; DestDir: "{app}"; DestName: "tacticalrmm.exe"; Flags:
 [Run]
 ; Instala y registra el agente (servicio + mesh) con los datos del cliente
 Filename: "{app}\tacticalrmm.exe"; Parameters: "-m install --api {#Api} --client-id {#Client} --site-id {#Site} --agent-type {#AgentType} --auth {#Token} {#RunFlags}"; Flags: runhidden waituntilterminated
-Filename: "{app}\tacticalrmm.exe"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runascurrentuser
 
 [UninstallRun]
 Filename: "{app}\tacticalrmm.exe"; Parameters: "-m cleanup"; RunOnceId: "cleanuprm"
@@ -89,13 +97,48 @@ Filename: "{cmd}"; Parameters: "/c taskkill /F /IM tacticalrmm.exe"; RunOnceId: 
 Type: filesandordirs; Name: "{app}"
 
 [Code]
+// Si el usuario lo lanza a mano (no silencioso), relanza el propio instalador
+// con /VERYSILENT y aborta esta instancia. El segundo arranque ya no muestra
+// ningun asistente y termina con un unico cuadro de confirmacion.
 function InitializeSetup(): Boolean;
 var
   ResultCode: Integer;
 begin
+  if not WizardSilent() then
+  begin
+    // Ojo: Exec no puede lanzar el propio setup, por eso se hace via "start".
+    Exec('cmd.exe',
+         '/c start "" "' + ExpandConstant('{srcexe}') + '" /VERYSILENT /NORESTART',
+         '', SW_HIDE, ewNoWait, ResultCode);
+    Result := False;
+    Exit;
+  end;
+
   Exec('cmd.exe', '/c ping 127.0.0.1 -n 2 && net stop tacticalrmm', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec('cmd.exe', '/c taskkill /F /IM tacticalrmm.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+begin
+  if CurStep = ssDone then
+  begin
+    MsgBox('Instalación completada correctamente.' + #13#10#13#10 +
+           'Este equipo ya está bajo el soporte técnico de pa.co.it.' + #13#10 +
+           'En unos minutos aparecerá en nuestro sistema de monitorización.' + #13#10#13#10 +
+           'Ya puede cerrar esta ventana.' + #13#10#13#10 +
+           '¿Alguna duda? Escríbanos a soporte@pa.co.it',
+           mbInformation, MB_OK);
+
+    // Instalacion correcta: borra este mismo instalador. Se lanza un cmd
+    // desacoplado que espera unos segundos (a que este proceso suelte el
+    // fichero) y lo elimina en silencio.
+    Exec('cmd.exe',
+         '/c ping 127.0.0.1 -n 5 > nul & del /f /q "' + ExpandConstant('{srcexe}') + '"',
+         '', SW_HIDE, ewNoWait, ResultCode);
+  end;
 end;
 
 function InitializeUninstall(): Boolean;
