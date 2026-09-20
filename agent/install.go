@@ -349,7 +349,7 @@ func (a *Agent) Install(i *Installer) {
 		}
 	}
 
-	a.installerMsg("Instalacion correcta.\nDeja unos minutos para que el agente aparezca en el RMM.", "info", i.Silent)
+	a.installerMsg("Instalación completada correctamente.\n\nEste equipo ya está bajo el soporte técnico de pa.co.it.\nEn unos minutos aparecerá en nuestro sistema de monitorización.\n\nYa puede cerrar esta ventana.\n\n¿Alguna duda? Escríbanos a soporte@pa.co.it", "info", i.Silent)
 }
 
 func copyFile(src, dst string) error {

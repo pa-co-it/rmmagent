@@ -109,14 +109,14 @@ func (a *Agent) checkExistingAndRemove(silent bool) {
 		window := w32.GetForegroundWindow()
 		if !silent && window != 0 {
 			var handle w32.HWND
-			msg := "Se encontro una instalacion existente.\nPulsa Aceptar para eliminarla y vuelve a ejecutar el instalador.\nPulsa Cancelar para abortar."
-			action := w32.MessageBox(handle, msg, "PA.CO.IT", w32.MB_OKCANCEL|w32.MB_ICONWARNING)
+			msg := "Se ha encontrado una instalación anterior del agente.\n\nPulse Aceptar para desinstalarla y vuelva a ejecutar este instalador.\nPulse Cancelar para salir sin hacer cambios."
+			action := w32.MessageBox(handle, msg, "pa.co.it – Soporte Técnico", w32.MB_OKCANCEL|w32.MB_ICONWARNING)
 			if action == w32.IDOK {
 				a.AgentUninstall("foo")
 			}
 		} else {
-			fmt.Println("Se encontro una instalacion existente y debe eliminarse antes de reinstalar.")
-			fmt.Println("Ejecuta el siguiente comando para desinstalar y vuelve a ejecutar el instalador.")
+			fmt.Println("Se ha encontrado una instalación anterior que debe eliminarse antes de reinstalar.")
+			fmt.Println("Ejecute el siguiente comando para desinstalarla y vuelva a lanzar este instalador.")
 			fmt.Printf(`"%s" %s `, tacUninstArgs[0], tacUninstArgs[1])
 		}
 		os.Exit(0)
@@ -140,7 +140,7 @@ func (a *Agent) installerMsg(msg, alert string, silent bool) {
 			flags = w32.MB_OK | w32.MB_ICONINFORMATION
 		}
 
-		w32.MessageBox(handle, msg, "PA.CO.IT", flags)
+		w32.MessageBox(handle, msg, "pa.co.it – Soporte Técnico", flags)
 	} else {
 		fmt.Println(msg)
 	}
