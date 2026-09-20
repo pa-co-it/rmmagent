@@ -48,6 +48,10 @@
   #define OutName "agente-pacoit"
 #endif
 
+; Confirmacion final (PowerShell -EncodedCommand, UTF-16LE en Base64).
+; Texto: Instalacion completada correctamente. / soporte@pa.co.it
+#define MSG_B64 "QQBkAGQALQBUAHkAcABlACAALQBBAHMAcwBlAG0AYgBsAHkATgBhAG0AZQAgAFMAeQBzAHQAZQBtAC4AVwBpAG4AZABvAHcAcwAuAEYAbwByAG0AcwA7ACAAWwBTAHkAcwB0AGUAbQAuAFcAaQBuAGQAbwB3AHMALgBGAG8AcgBtAHMALgBNAGUAcwBzAGEAZwBlAEIAbwB4AF0AOgA6AFMAaABvAHcAKAAiAEkAbgBzAHQAYQBsAGEAYwBpAPMAbgAgAGMAbwBtAHAAbABlAHQAYQBkAGEAIABjAG8AcgByAGUAYwB0AGEAbQBlAG4AdABlAC4ADQAKAA0ACgBFAHMAdABlACAAZQBxAHUAaQBwAG8AIAB5AGEAIABlAHMAdADhACAAYgBhAGoAbwAgAGUAbAAgAHMAbwBwAG8AcgB0AGUAIAB0AOkAYwBuAGkAYwBvACAAZABlACAAcABhAC4AYwBvAC4AaQB0AC4ADQAKAEUAbgAgAHUAbgBvAHMAIABtAGkAbgB1AHQAbwBzACAAYQBwAGEAcgBlAGMAZQByAOEAIABlAG4AIABuAHUAZQBzAHQAcgBvACAAcwBpAHMAdABlAG0AYQAgAGQAZQAgAG0AbwBuAGkAdABvAHIAaQB6AGEAYwBpAPMAbgAuAA0ACgANAAoAWQBhACAAcAB1AGUAZABlACAAYwBlAHIAcgBhAHIAIABlAHMAdABhACAAdgBlAG4AdABhAG4AYQAuAA0ACgANAAoAvwBBAGwAZwB1AG4AYQAgAGQAdQBkAGEAPwAgAEUAcwBjAHIA7QBiAGEAbgBvAHMAIABhACAAcwBvAHAAbwByAHQAZQBAAHAAYQAuAGMAbwAuAGkAdAAiACwAIgBwAGEALgBjAG8ALgBpAHQAIAAtACAAUwBvAHAAbwByAHQAZQAgAFQA6QBjAG4AaQBjAG8AIgAsACIATwBLACIALAAiAEkAbgBmAG8AcgBtAGEAdABpAG8AbgAiACkAIAB8ACAATwB1AHQALQBOAHUAbABsAA=="
+
 [Setup]
 ; Mismo AppId que el instalador original: actualiza/reemplaza instalaciones previas
 AppId={{0D34D278-5FAF-4159-A4A0-4E2D2C08139D}
@@ -125,12 +129,12 @@ var
 begin
   if CurStep = ssDone then
   begin
-    MsgBox('Instalación completada correctamente.' + #13#10#13#10 +
-           'Este equipo ya está bajo el soporte técnico de pa.co.it.' + #13#10 +
-           'En unos minutos aparecerá en nuestro sistema de monitorización.' + #13#10#13#10 +
-           'Ya puede cerrar esta ventana.' + #13#10#13#10 +
-           '¿Alguna duda? Escríbanos a soporte@pa.co.it',
-           mbInformation, MB_OK);
+    // El MsgBox de Inno no se muestra en modo /VERYSILENT, asi que la
+    // confirmacion se lanza como MessageBox de Windows via PowerShell. El texto
+    // va en Base64 (UTF-16LE) para no depender de la codepage del equipo.
+    Exec('powershell.exe',
+         '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand {#MSG_B64}',
+         '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
 
     // Instalacion correcta: borra este mismo instalador. Se lanza un cmd
     // desacoplado que espera unos segundos (a que este proceso suelte el
