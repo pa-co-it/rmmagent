@@ -13,3 +13,6 @@ tacticalagent-v*
 
 # Allow WinPTY agent binary (runtime dependency)
 !agent/winpty_bins/**/winpty-agent.exe
+
+# Iconos del build (agente + instalador)
+!build/onit.ico
