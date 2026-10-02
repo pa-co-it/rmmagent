@@ -4,10 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: 'Objetivo: all = todas las plataformas, linux = solo Linux'
+        description: 'Objetivo: all = todas, windows = solo Windows (amd64+386), linux = solo Linux'
         type: choice
         options:
           - all
+          - windows
           - linux
         default: all
   push:
@@ -65,10 +66,14 @@ jobs:
     needs: build
     if: ${{ github.event.inputs.only != 'linux' }}
     runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, "386"]
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: agent-windows-amd64
+          name: agent-windows-${{ matrix.arch }}
           path: dist
       - uses: azure/login@v3
         with:
@@ -84,15 +89,18 @@ jobs:
           file-digest: SHA256
           timestamp-rfc3161: 'http://timestamp.acs.microsoft.com'
           timestamp-digest: SHA256
+      - name: Renombrar al formato de release (tacticalrmm-windows-<arch>.exe)
+        shell: pwsh
+        run: Move-Item dist\tacticalrmm.exe "dist\tacticalrmm-windows-${{ matrix.arch }}.exe" -Force
       - uses: actions/upload-artifact@v4
         with:
-          name: signed-windows-amd64
-          path: dist/tacticalrmm.exe
+          name: signed-windows-${{ matrix.arch }}
+          path: dist/tacticalrmm-windows-${{ matrix.arch }}.exe
 
   # ---------------------------------------------------------- sign macos
   sign-macos:
     needs: build
-    if: ${{ github.event.inputs.only != 'linux' }}
+    if: ${{ github.event.inputs.only == '' || github.event.inputs.only == 'all' }}
     runs-on: macos-14
     strategy:
       matrix:
@@ -138,6 +146,7 @@ jobs:
   # todas las arquitecturas (servidores + NAS: amd64/arm64/386/arm)
   sign-linux:
     needs: build
+    if: ${{ github.event.inputs.only != 'windows' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -166,6 +175,7 @@ jobs:
   # ------------------------------------------- checksums linux (release)
   linux-checksums:
     needs: sign-linux
+    if: ${{ github.event.inputs.only != 'windows' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
