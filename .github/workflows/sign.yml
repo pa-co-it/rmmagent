@@ -52,12 +52,9 @@ jobs:
       - name: Generate Windows version resource (icon + version info)
         if: matrix.goos == 'windows'
         shell: bash
-        env:
-          GOOS: windows
-          GOARCH: ${{ matrix.goarch }}
         run: |
           go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.4.0
-          "$(go env GOPATH)/bin/goversioninfo" -icon build/onit.ico -manifest build/rmm.exe.manifest -o resource.syso versioninfo.json
+          GOOS=windows GOARCH=${{ matrix.goarch }} "$(go env GOPATH)/bin/goversioninfo" -icon build/onit.ico -manifest build/rmm.exe.manifest -o resource.syso versioninfo.json
       - name: Build
         shell: bash
         run: |
