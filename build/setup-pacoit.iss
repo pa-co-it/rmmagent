@@ -81,6 +81,8 @@ VersionInfoVersion={#AgentVersion}.0
 VersionInfoOriginalFileName=tacticalrmm.exe
 AppCopyright=Copyright (C) 2026 {#AppPublisher}
 OutputBaseFilename={#OutName}
+SetupIconFile=onit.ico
+UninstallDisplayIcon={app}\tacticalrmm.exe
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
