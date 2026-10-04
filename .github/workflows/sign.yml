@@ -4,12 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: 'Objetivo: all = todas, windows = solo Windows (amd64+386), linux = solo Linux'
+        description: 'Objetivo: all = todas, windows = Windows, linux = Linux, macos = macOS'
         type: choice
         options:
           - all
           - windows
           - linux
+          - macos
         default: all
   push:
     tags:
@@ -70,7 +71,7 @@ jobs:
   # -------------------------------------------------------- sign windows
   sign-windows:
     needs: build
-    if: ${{ github.event.inputs.only != 'linux' }}
+    if: ${{ github.event.inputs.only != 'linux' && github.event.inputs.only != 'macos' }}
     runs-on: windows-2022
     strategy:
       fail-fast: false
@@ -106,11 +107,14 @@ jobs:
   # ---------------------------------------------------------- sign macos
   sign-macos:
     needs: build
-    if: ${{ github.event.inputs.only == '' || github.event.inputs.only == 'all' }}
+    if: ${{ github.event.inputs.only != 'windows' && github.event.inputs.only != 'linux' }}
     runs-on: macos-14
     strategy:
+      fail-fast: false
       matrix:
         arch: [amd64, arm64]
+    env:
+      DEV_ID: "Developer ID Application: INGENIERIA SANITARIA S.L. (${{ secrets.APPLE_TEAM_ID }})"
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -127,32 +131,55 @@ jobs:
           security unlock-keychain -p actions build.keychain
           security import cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
-      - name: Codesign
+      - name: Prepare notary key
+        env:
+          ASC_KEY: ${{ secrets.APPLE_ASC_KEY }}
+        run: echo "$ASC_KEY" > AuthKey.p8
+      - name: Codesign binario
         run: |
-          codesign --force --options runtime --timestamp \
-            --sign "Developer ID Application: INGENIERIA SANITARIA S.L. (${{ secrets.APPLE_TEAM_ID }})" \
-            dist/tacticalrmm
+          codesign --force --options runtime --timestamp --sign "$DEV_ID" dist/tacticalrmm
           codesign --verify --strict --verbose=2 dist/tacticalrmm
-      - name: Notarize
+      - name: Notarizar binario
         env:
           KEY_ID: ${{ secrets.APPLE_KEY_ID }}
           ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
-          ASC_KEY: ${{ secrets.APPLE_ASC_KEY }}
         run: |
-          echo "$ASC_KEY" > AuthKey.p8
           ditto -c -k --keepParent dist/tacticalrmm dist/tacticalrmm.zip
-          xcrun notarytool submit dist/tacticalrmm.zip \
-            --key AuthKey.p8 --key-id "$KEY_ID" --issuer "$ISSUER_ID" --wait
+          xcrun notarytool submit dist/tacticalrmm.zip --key AuthKey.p8 --key-id "$KEY_ID" --issuer "$ISSUER_ID" --wait
+      - name: Crear DMG (binario firmado + LEEME)
+        run: |
+          mkdir -p dmgroot
+          cp dist/tacticalrmm dmgroot/tacticalagent
+          printf '%s\n' \
+            'Agente de gestion pa.co.it (Tactical RMM).' \
+            'Instalacion: usa el comando del panel de pa.co.it (API, cliente/sitio y token).' \
+            > dmgroot/LEEME.txt
+          hdiutil create -volname "TacticalAgent pa.co.it" -srcfolder dmgroot -ov -format UDZO dist/instalar.dmg
+      - name: Firmar + notarizar + staple DMG
+        env:
+          KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
+        run: |
+          codesign --force --timestamp --sign "$DEV_ID" dist/instalar.dmg
+          xcrun notarytool submit dist/instalar.dmg --key AuthKey.p8 --key-id "$KEY_ID" --issuer "$ISSUER_ID" --wait
+          xcrun stapler staple dist/instalar.dmg
+          xcrun stapler validate dist/instalar.dmg
+      - name: Renombrar al formato de release
+        run: |
+          mv dist/tacticalrmm "dist/tacticalrmm-darwin-${{ matrix.arch }}"
+          mv dist/instalar.dmg "dist/tacticalrmm-darwin-${{ matrix.arch }}.dmg"
       - uses: actions/upload-artifact@v4
         with:
           name: signed-darwin-${{ matrix.arch }}
-          path: dist/tacticalrmm
+          path: |
+            dist/tacticalrmm-darwin-${{ matrix.arch }}
+            dist/tacticalrmm-darwin-${{ matrix.arch }}.dmg
 
   # ---------------------------------------------------------- sign linux
   # todas las arquitecturas (servidores + NAS: amd64/arm64/386/arm)
   sign-linux:
     needs: build
-    if: ${{ github.event.inputs.only != 'windows' }}
+    if: ${{ github.event.inputs.only != 'windows' && github.event.inputs.only != 'macos' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -181,7 +208,7 @@ jobs:
   # ------------------------------------------- checksums linux (release)
   linux-checksums:
     needs: sign-linux
-    if: ${{ github.event.inputs.only != 'windows' }}
+    if: ${{ github.event.inputs.only != 'windows' && github.event.inputs.only != 'macos' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -210,6 +237,32 @@ jobs:
         with:
           name: signed-linux-release
           path: out/*
+
+  # -------------------------------------------------- release macos (manual)
+  release-macos:
+    needs: sign-macos
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.only != 'windows' && github.event.inputs.only != 'linux' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version del agente
+        id: ver
+        run: echo "v=$(grep -oP 'version\s*=\s*\"\K[0-9.]+' main.go | head -1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: signed-darwin-*
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: macos-${{ steps.ver.outputs.v }}
+          name: macOS agents ${{ steps.ver.outputs.v }} (firmado + notarizado)
+          body: |
+            Agente macOS ${{ steps.ver.outputs.v }} firmado con Developer ID y notarizado (DMG + binario).
+            - tacticalrmm-darwin-amd64 / arm64  → binario para el instalador TRMM (SELF_SIGNED_AGENTS darwin)
+            - tacticalrmm-darwin-<arch>.dmg     → instalación manual
+          prerelease: true
+          files: out/*
 
   # -------------------------------------------------------------- release
   release:
