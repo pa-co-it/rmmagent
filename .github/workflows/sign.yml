@@ -24,7 +24,7 @@ env:
   GO_VERSION: '1.20.13'
   # --- Azure Artifact Signing ---
   SIGNING_ENDPOINT: 'https://weu.codesigning.azure.net/'
-  SIGNING_ACCOUNT: 'ingenieriasanitaria'
+  SIGNING_ACCOUNT: 'pa-co-it-ing-sanitaria'
   CERT_PROFILE: 'trmm-agent'
   # Requires the "Artifact Signing Certificate Profile Signer" role
 
