@@ -114,7 +114,7 @@ jobs:
       matrix:
         arch: [amd64, arm64]
     env:
-      DEV_ID: "Developer ID Application: INGENIERIA SANITARIA S.L. (${{ secrets.APPLE_TEAM_ID }})"
+      DEV_ID: "Developer ID Application: INGENIERIA SANITARIA SL (${{ secrets.APPLE_TEAM_ID }})"
     steps:
       - uses: actions/download-artifact@v4
         with:
