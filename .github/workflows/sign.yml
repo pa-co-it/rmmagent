@@ -152,7 +152,7 @@ jobs:
   sign-macos:
     needs: build
     if: ${{ github.event.inputs.only != 'windows' && github.event.inputs.only != 'linux' }}
-    runs-on: macos-14
+    runs-on: macos-15
     strategy:
       fail-fast: false
       matrix:
