@@ -21,7 +21,7 @@
   #define AppURL "https://pa.co.it"
 #endif
 #ifndef AgentVersion
-  #define AgentVersion "2.11.0"
+  #define AgentVersion "2.12.0"
 #endif
 #ifndef Client
   #define Client "0"
