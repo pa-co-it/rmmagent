@@ -96,13 +96,48 @@ jobs:
           file-digest: SHA256
           timestamp-rfc3161: 'http://timestamp.acs.microsoft.com'
           timestamp-digest: SHA256
+      # Instalador de ACTUALIZACION (Inno, build/setup.iss): es lo que el agente
+      # descarga y ejecuta con /VERYSILENT al auto-actualizarse (SELF_SIGNED_AGENTS windows).
+      - uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Compilar instalador de actualizacion (Inno)
+        id: inno
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path src\main.go -Pattern 'version\s*=\s*"([0-9.]+)"').Matches[0].Groups[1].Value
+          "v=$v" >> $env:GITHUB_OUTPUT
+          choco install innosetup -y --no-progress
+          New-Item -ItemType Directory -Force C:\Users\Public\Documents\agent | Out-Null
+          Copy-Item dist\tacticalrmm.exe C:\Users\Public\Documents\agent\tacticalrmm.exe -Force
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q "/O$env:GITHUB_WORKSPACE\dist" "/Ftacticalagent-v$v-windows-${{ matrix.arch }}" src\build\setup.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC fallo ($LASTEXITCODE)" }
+      - uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ env.SIGNING_ENDPOINT }}
+          signing-account-name: ${{ env.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ env.CERT_PROFILE }}
+          files: ${{ github.workspace }}\dist\tacticalagent-v${{ steps.inno.outputs.v }}-windows-${{ matrix.arch }}.exe
+          file-digest: SHA256
+          timestamp-rfc3161: 'http://timestamp.acs.microsoft.com'
+          timestamp-digest: SHA256
+      - name: Verificar firmas
+        shell: pwsh
+        run: |
+          Get-ChildItem dist\*.exe | ForEach-Object {
+            $sig = Get-AuthenticodeSignature $_.FullName
+            "$($_.Name): $($sig.Status) $($sig.SignerCertificate.Subject)"
+            if ($sig.Status -ne 'Valid') { throw "Firma no valida: $($_.Name)" }
+          }
       - name: Renombrar al formato de release (tacticalrmm-windows-<arch>.exe)
         shell: pwsh
         run: Move-Item dist\tacticalrmm.exe "dist\tacticalrmm-windows-${{ matrix.arch }}.exe" -Force
       - uses: actions/upload-artifact@v4
         with:
           name: signed-windows-${{ matrix.arch }}
-          path: dist/tacticalrmm-windows-${{ matrix.arch }}.exe
+          path: |
+            dist/tacticalrmm-windows-${{ matrix.arch }}.exe
+            dist/tacticalagent-v*-windows-${{ matrix.arch }}.exe
 
   # ---------------------------------------------------------- sign macos
   sign-macos:
