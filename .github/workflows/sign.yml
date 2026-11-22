@@ -264,6 +264,54 @@ jobs:
           prerelease: true
           files: out/*
 
+  # ------------------------------------------------ release windows (manual)
+  release-windows:
+    needs: sign-windows
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.only != 'linux' && github.event.inputs.only != 'macos' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version del agente
+        id: ver
+        run: echo "v=$(grep -oP 'version\s*=\s*\"\K[0-9.]+' main.go | head -1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: signed-windows-*
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: win-${{ steps.ver.outputs.v }}
+          name: Windows agents ${{ steps.ver.outputs.v }} (firmado Azure)
+          body: |
+            Agente Windows ${{ steps.ver.outputs.v }} firmado con Azure Artifact Signing (perfil ${{ env.CERT_PROFILE }}) y timestamp de Microsoft.
+            - tacticalrmm-windows-amd64.exe / 386.exe → SELF_SIGNED_AGENTS windows y SELF_SIGNED_WIN_AGENT_URL (instalador Inno local)
+          prerelease: true
+          files: out/*
+
+  # -------------------------------------------------- release linux (manual)
+  release-linux:
+    needs: linux-checksums
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.only != 'windows' && github.event.inputs.only != 'macos' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version del agente
+        id: ver
+        run: echo "v=$(grep -oP 'version\s*=\s*\"\K[0-9.]+' main.go | head -1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-linux-release
+          path: out
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: linux-${{ steps.ver.outputs.v }}
+          name: Linux agents ${{ steps.ver.outputs.v }} (GPG-signed)
+          body: |
+            Agente Linux ${{ steps.ver.outputs.v }}: binarios por arquitectura + firma GPG (.asc), SHA256SUMS firmado y clave publica.
+          prerelease: true
+          files: out/*
+
   # -------------------------------------------------------------- release
   release:
     needs: [sign-windows, sign-macos, sign-linux, linux-checksums]
