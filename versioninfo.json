@@ -2,13 +2,13 @@
     "FixedFileInfo": {
         "FileVersion": {
             "Major": 2,
-            "Minor": 11,
+            "Minor": 12,
             "Patch": 0,
             "Build": 0
         },
         "ProductVersion": {
             "Major": 2,
-            "Minor": 11,
+            "Minor": 12,
             "Patch": 0,
             "Build": 0
         },
@@ -22,14 +22,14 @@
         "Comments": "",
         "CompanyName": "INGENIERIA SANITARIA S.L.",
         "FileDescription": "Agente de gestion PA.CO.IT",
-        "FileVersion": "v2.11.0.0",
+        "FileVersion": "v2.12.0.0",
         "InternalName": "tacticalrmm.exe",
         "LegalCopyright": "Copyright (c) 2026 INGENIERIA SANITARIA S.L.",
         "LegalTrademarks": "",
         "OriginalFilename": "tacticalrmm.exe",
         "PrivateBuild": "",
         "ProductName": "Agente PA.CO.IT",
-        "ProductVersion": "v2.11.0.0",
+        "ProductVersion": "v2.12.0.0",
         "SpecialBuild": ""
     },
     "VarFileInfo": {
