@@ -110,6 +110,15 @@ jobs:
           choco install innosetup -y --no-progress
           New-Item -ItemType Directory -Force C:\Users\Public\Documents\agent | Out-Null
           Copy-Item dist\tacticalrmm.exe C:\Users\Public\Documents\agent\tacticalrmm.exe -Force
+          # setup.iss lee build\onit.ico y build\onit.bmp de esa carpeta; el .bmp no esta en upstream
+          New-Item -ItemType Directory -Force C:\Users\Public\Documents\agent\build | Out-Null
+          Copy-Item src\build\onit.ico C:\Users\Public\Documents\agent\build\onit.ico -Force
+          Add-Type -AssemblyName System.Drawing
+          $ico = New-Object System.Drawing.Icon('src\build\onit.ico', 256, 256)
+          $bmp = New-Object System.Drawing.Bitmap 55, 58
+          $g = [System.Drawing.Graphics]::FromImage($bmp); $g.Clear([System.Drawing.Color]::White)
+          $g.InterpolationMode = 'HighQualityBicubic'; $g.DrawImage($ico.ToBitmap(), 1, 2, 53, 53); $g.Dispose()
+          $bmp.Save('C:\Users\Public\Documents\agent\build\onit.bmp', [System.Drawing.Imaging.ImageFormat]::Bmp)
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q "/O$env:GITHUB_WORKSPACE\dist" "/Ftacticalagent-v$v-windows-${{ matrix.arch }}" src\build\setup.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC fallo ($LASTEXITCODE)" }
       - uses: azure/artifact-signing-action@v2
